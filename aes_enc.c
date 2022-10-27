@@ -10,8 +10,6 @@
 #define MULD(x) (MUL3(MUL3((x))) ^ MUL4((x)))
 #define MULE(x) (MUL3(MUL2((x))) ^ MUL8((x)))
 
-#define RND_KEY_IDX(r, i) ((r) + ((i) << 4))
-
 #define ADD_RND_KEY(s, k)       \
 __asm__ __volatile__ (          \
     "movq (%%rsi), %%rbx  \n\t" \
@@ -47,7 +45,7 @@ typedef struct {
 
 typedef struct {
     pbyte keys;
-    u32   number;
+    u32   rnd_num;
 } Round, * pRound;
 
 const byte kRCon[0xA] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36 };
@@ -71,15 +69,6 @@ const byte kSBox[0x100] = {
     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
 
-void printInterim(pbyte bytes, char * title) {
-    printf("------ %s ------\n", title);
-    for (unsigned i = 0; i < 16; i++) {
-        printf("0x%02x ", bytes[i]);
-        if ((i + 1) % 4 == 0) puts("");
-    }
-    puts("");
-}
-
 void updateAllocBytes(pAllocBytes obj, pbyte bytes, u32 len) {
     free(obj->memory);
     obj->memory = bytes;
@@ -87,9 +76,7 @@ void updateAllocBytes(pAllocBytes obj, pbyte bytes, u32 len) {
 }
 
 void swap(pbyte x, pbyte y) {
-    *x ^= *y;
-    *y ^= *x;
-    *x ^= *y;
+    *x ^= *y; *y ^= *x; *x ^= *y;
 }
 
 void toggleState(pbyte block) {
@@ -143,29 +130,30 @@ void mixColumns(pbyte stt) {
     toggleState(stt);
 }
 
-void makeT128(pbyte pre_word, u32 r_con) {
-   ROT_WORD(pre_word, 8);
+void makeT128(pbyte word, u32 r_con) {
+    ROT_WORD(word, 8);
 
-    pre_word[0] = kSBox[pre_word[0]] ^ r_con;
-    pre_word[1] = kSBox[pre_word[1]];
-    pre_word[2] = kSBox[pre_word[2]];
-    pre_word[3] = kSBox[pre_word[3]];
+    word[0] = kSBox[word[0]] ^ r_con;
+    word[1] = kSBox[word[1]];
+    word[2] = kSBox[word[2]];
+    word[3] = kSBox[word[3]];
 }
 
 pbyte expandKey128(pbyte master_key, u32 rnd_num) {
-    pbyte pre_word   = malloc(4),
+    pbyte word0      = malloc(4),
           round_keys = malloc((rnd_num + 1) * 0x10);
 
+    toggleState(master_key);
     memmove(round_keys, master_key, 0x10);
 
-    for (u32 i = 0x10; i < rnd_num; i += 0x10) {
-        memmove(pre_word, round_keys + i - 0x4, 4);
-        makeT128(pre_word, kRCon[(i >> 4) - 1]);
+    for (u32 i = 0x10; i <= rnd_num * 0x10; i += 0x10) {
+        memmove(word0, round_keys + i - 0x4, 4);
+        makeT128(word0, kRCon[(i >> 4) - 1]);
 
-        u32 word1 = *(pu32)pre_word ^ *(pu32)round_keys[i - 0x10];
-        u32 word2 = *(pu32)word1    ^ *(pu32)round_keys[i - 0x0C];
-        u32 word3 = *(pu32)word2    ^ *(pu32)round_keys[i - 0x08];
-        u32 word4 = *(pu32)word3    ^ *(pu32)round_keys[i - 0x04];
+        u32 word1 = *(pu32)word0 ^ *(pu32)(round_keys + i - 0x10);
+        u32 word2 = word1        ^ *(pu32)(round_keys + i - 0x0C);
+        u32 word3 = word2        ^ *(pu32)(round_keys + i - 0x08);
+        u32 word4 = word3        ^ *(pu32)(round_keys + i - 0x04);
 
         memmove(round_keys + i + 0x0, &word1, 4);
         memmove(round_keys + i + 0x4, &word2, 4);
@@ -173,7 +161,11 @@ pbyte expandKey128(pbyte master_key, u32 rnd_num) {
         memmove(round_keys + i + 0xC, &word4, 4);
     }
 
-    free(pre_word);
+    for (u32 i = 0; i <= rnd_num * 0x10; i += 0x10) {
+        toggleState(round_keys + i);
+    }
+
+    free(word0);
     return round_keys;
 }
 
@@ -194,39 +186,21 @@ pRound keySchedule(pAllocBytes master_key) {
 }
 
 void encryptAES(pbyte inout, pAllocBytes master_key) {
-    toggleState(master_key->memory);
-    toggleState(inout);
-
-    u32    idx   = 0;
     pRound round = keySchedule(master_key);
+    u32    idx   = 0x10;
     
     ADD_RND_KEY(inout, round->keys);
 
-    printInterim(inout, "0 Round addRndKey");
-
-    puts("\nDEBUG");
-
-    while (++idx < round->number) {
-        printf("\n--- Round %lu ---\n", idx);
+    for (; idx < round->rnd_num * 0x10; idx += 0x10) {
         subBytes(inout);
-        printInterim(inout, "SubBytes");
         shiftRows(inout);
-        printInterim(inout, "ShiftRows");
         mixColumns(inout);
-        printInterim(inout, "MixColumns");
-        ADD_RND_KEY(inout, RND_KEY_IDX(round->keys, idx));
-        printInterim(inout, "AddRoundKey");
-        printInterim(RND_KEY_IDX(round->keys, idx), "KeySchedule");
+        ADD_RND_KEY(inout, round->keys + idx);
     }
 
-    puts("-----------------\n");
-
     subBytes(inout);
-    printInterim(inout, "SubBytes");
     shiftRows(inout);
-    printInterim(inout, "ShiftRows");
-    ADD_RND_KEY(inout, RND_KEY_IDX(round->keys, idx));
-    printInterim(inout, "AddRoundKey");
+    ADD_RND_KEY(inout, round->keys + idx);
 
     free(round->keys);
     free(round);
@@ -250,19 +224,19 @@ void encryptWithECB(pAllocBytes plain, pAllocBytes master_key) {
 int main(void) {
     AllocBytes key = {
         .memory = (byte[16]) {
-            0x2B, 0x7E, 0x15, 0x16,
-            0x28, 0xAE, 0xD2, 0xA6,
-            0xAB, 0xF7, 0x15, 0x88,
-            0x09, 0xCF, 0x4F, 0x3C
+            0x2B, 0x28, 0xAB, 0x09,
+            0x7E, 0xAE, 0xF7, 0xCF,
+            0x15, 0xD2, 0x15, 0x4F,
+            0x16, 0xA6, 0x88, 0x3C
         },
         .length = 16
     };
 
     byte plain[16] = {
-        0x32, 0x43, 0xF6, 0xA8,
-        0x88, 0x5A, 0x30, 0x8D,
-        0x31, 0x31, 0x98, 0xA2,
-        0xE0, 0x37, 0x07, 0x34
+        0x32, 0x88, 0x31, 0xE0,
+        0x43, 0x5A, 0x31, 0x37,
+        0xF6, 0x30, 0x98, 0x07,
+        0xA8, 0x8D, 0xA2, 0x34
     };
 
     encryptAES(plain, &key);
