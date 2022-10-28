@@ -1,6 +1,4 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include "aes_enc_dec.h"
 
 #define MUL2(x) (((x) << 1) ^ ((x) & 0x80 ? 0x1B : 0))
 #define MUL3(x) (MUL2((x)) ^ (x))
@@ -51,14 +49,6 @@ __asm__ __volatile__ (         \
 #define INV_MIX_COL_2X(w, x, y, z) (MULE((y)) ^ MULB((z)) ^ MULD((w)) ^ MUL9((x)))
 #define INV_MIX_COL_3X(w, x, y, z) (MULE((z)) ^ MULB((w)) ^ MULD((x)) ^ MUL9((y)))
 
-typedef unsigned char byte, * pbyte;
-typedef unsigned long u32,  * pu32;
-
-typedef struct {
-    pbyte memory;
-    u32   length;
-} AllocBytes, * pAllocBytes;
-
 typedef struct {
     pbyte keys;
     u32   rnd_num;
@@ -103,12 +93,6 @@ const byte kInvSBox[0x100] = {
     0xa0, 0xe0, 0x3b, 0x4d, 0xae, 0x2a, 0xf5, 0xb0, 0xc8, 0xeb, 0xbb, 0x3c, 0x83, 0x53, 0x99, 0x61,
     0x17, 0x2b, 0x04, 0x7e, 0xba, 0x77, 0xd6, 0x26, 0xe1, 0x69, 0x14, 0x63, 0x55, 0x21, 0x0c, 0x7d
 };
-
-void updateAllocBytes(pAllocBytes obj, pbyte bytes, u32 len) {
-    free(obj->memory);
-    obj->memory = bytes;
-    obj->length = len;
-}
 
 void swap(pbyte x, pbyte y) {
     *x ^= *y; *y ^= *x; *x ^= *y;
@@ -251,7 +235,7 @@ pbyte expandKey192(pbyte master_key, u32 rnd_num) {}
 pbyte expandKey256(pbyte master_key, u32 rnd_num) {}
 
 pRound keySchedule(pAllocBytes master_key) {
-    pRound result = (pRound) malloc(sizeof(Round));
+    pRound result = malloc(sizeof(Round));
 
     switch(master_key->length) {
     case 16: *result = (Round) { expandKey128(master_key->memory, 10), 10 }; break;
@@ -304,13 +288,36 @@ void decryptAES(pbyte inout, pAllocBytes master_key) {
     free(round);
 }
 
-void padding(pAllocBytes plain) {
-    u32   padding_len = 0x10 - plain->length % 0x10,
-          result_len  = plain->length + padding_len;
-    pbyte result      = malloc(result_len);
+pAllocBytes padding(pAllocBytes plain) {
+    u32         padding_len = 0x10 - plain->length % 0x10,
+                result_len  = plain->length + padding_len;
+    pAllocBytes result      = malloc(sizeof(pAllocBytes));
+
+    *result = (AllocBytes) { malloc(result_len), result_len };
+
+    memset(result->memory + plain->length, padding_len, padding_len);
+    memmove(result->memory, plain->memory, plain->length);
+
+    free(plain->memory);
+    free(plain);
     
-    memset(result + plain->length, padding_len, padding_len);
-    updateAllocBytes(plain, result, result_len);
+    return result;
+}
+
+pAllocBytes unpadding(pAllocBytes plain) {
+    u32  content_sz         = plain->length,
+         padding_sz         = plain->memory[content_sz - 1],
+         without_padding_sz = content_sz - padding_sz;
+    pAllocBytes result = malloc(sizeof(pAllocBytes));
+
+    *result = (AllocBytes) { malloc(without_padding_sz), without_padding_sz };
+
+    memmove(result->memory, plain, without_padding_sz);
+
+    free(plain->memory);
+    free(plain);
+
+    return result;
 }
 
 void encryptWithECB(pAllocBytes plain, pAllocBytes master_key) {
@@ -319,40 +326,28 @@ void encryptWithECB(pAllocBytes plain, pAllocBytes master_key) {
     }
 }
 
-int main(void) {
-    AllocBytes key = {
-        .memory = (byte[16]) {
-            0x2B, 0x28, 0xAB, 0x09,
-            0x7E, 0xAE, 0xF7, 0xCF,
-            0x15, 0xD2, 0x15, 0x4F,
-            0x16, 0xA6, 0x88, 0x3C
-        },
-        .length = 16
-    };
-
-    byte plain[16] = {
-        0x32, 0x88, 0x31, 0xE0,
-        0x43, 0x5A, 0x31, 0x37,
-        0xF6, 0x30, 0x98, 0x07,
-        0xA8, 0x8D, 0xA2, 0x34
-    };
-
-    byte cypher[16] = {
-        0x39, 0x02, 0xDC, 0x19, 
-        0x25, 0xDC, 0x11, 0x6A, 
-        0x84, 0x09, 0x85, 0x0B, 
-        0x1D, 0xFB, 0x97, 0x32
-    };
-
-    // encryptAES(plain, &key);
-    decryptAES(cypher, &key);
-
-    puts("--------- Result -----------");
-
-    for (unsigned i = 0; i < 16; i++) {
-        printf("%#x ", cypher[i]);
-        if ((i + 1) % 4 == 0) puts("");
+void decryptWithECB(pAllocBytes cypher, pAllocBytes master_key) {
+    for (u32 i = 0; i < cypher->length; i += 0x10) {
+        decryptAES(cypher->memory + i, master_key);
     }
+}
+
+void encryptWithCBC(pAllocBytes plain, pAllocBytes master_key) {
+
+}
+
+void decryptWithCBC(pAllocBytes cypher, pAllocBytes master_key) {
+
+}
+
+void doWithCTR(pAllocBytes bytes, pAllocBytes master_key) {
+
+}
+
+void encryptWithCTR(pAllocBytes plain, pAllocBytes master_key) {
+
+}
+
+void decryptWithCTR(pAllocBytes cypher, pAllocBytes master_key) {
     
-    return 0;
 }
