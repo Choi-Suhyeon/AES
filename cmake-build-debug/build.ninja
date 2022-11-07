@@ -48,21 +48,21 @@ build cmake_object_order_depends_target_AES: phony || CMakeFiles/AES.dir
 
 build CMakeFiles/AES.dir/aes_enc_dec.c.o: C_COMPILER__AES_Debug /Users/choisuhyeon/CLionProjects/AES/aes_enc_dec.c || cmake_object_order_depends_target_AES
   DEP_FILE = CMakeFiles/AES.dir/aes_enc_dec.c.o.d
-  FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -std=gnu11
+  FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -O2 -std=c11 -std=gnu11
   INCLUDES = -I/Users/choisuhyeon/CLionProjects/AES/.
   OBJECT_DIR = CMakeFiles/AES.dir
   OBJECT_FILE_DIR = CMakeFiles/AES.dir
 
 build CMakeFiles/AES.dir/file_io.c.o: C_COMPILER__AES_Debug /Users/choisuhyeon/CLionProjects/AES/file_io.c || cmake_object_order_depends_target_AES
   DEP_FILE = CMakeFiles/AES.dir/file_io.c.o.d
-  FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -std=gnu11
+  FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -O2 -std=c11 -std=gnu11
   INCLUDES = -I/Users/choisuhyeon/CLionProjects/AES/.
   OBJECT_DIR = CMakeFiles/AES.dir
   OBJECT_FILE_DIR = CMakeFiles/AES.dir
 
 build CMakeFiles/AES.dir/main.c.o: C_COMPILER__AES_Debug /Users/choisuhyeon/CLionProjects/AES/main.c || cmake_object_order_depends_target_AES
   DEP_FILE = CMakeFiles/AES.dir/main.c.o.d
-  FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -std=gnu11
+  FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -O2 -std=c11 -std=gnu11
   INCLUDES = -I/Users/choisuhyeon/CLionProjects/AES/.
   OBJECT_DIR = CMakeFiles/AES.dir
   OBJECT_FILE_DIR = CMakeFiles/AES.dir

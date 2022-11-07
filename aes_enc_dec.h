@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdbool.h>
 
 typedef unsigned char u8,   * pu8;
 typedef unsigned int  u32,  * pu32;

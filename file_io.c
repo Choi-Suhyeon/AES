@@ -10,8 +10,8 @@ void addEncryptedSuffix(char * dst, char * src) {
 void delEncryptedSuffix(char * dst, char * src) {
     char * suffix       = ".encrypted";
     u32    suffix_len   = strlen(suffix),
-        src_len      = strlen(src),
-        pos_replaced = src_len - suffix_len;
+           src_len      = strlen(src),
+           pos_replaced = src_len - suffix_len;
 
     memmove(dst, src, src_len);
 

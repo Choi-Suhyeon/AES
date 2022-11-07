@@ -337,8 +337,8 @@ void decryptAES(pu8 inout, pAllocBytes master_key) {
 }
 
 AllocBytes padding(pAllocBytes plain) {
-    u32         padding_sz = 0x10 - plain->length % 0x10,
-                result_sz  = plain->length + padding_sz;
+    u32        padding_sz  = 0x10 - plain->length % 0x10,
+               result_sz   = plain->length + padding_sz;
     AllocBytes result      = { malloc(result_sz), result_sz };
 
     memset(result.memory + plain->length, padding_sz, padding_sz);
@@ -380,7 +380,7 @@ void decryptWithCBC(pAllocBytes cypher, pAllocBytes master_key) {
 
 }
 
-void doWithCTR(pAllocBytes bytes, pAllocBytes master_key) {
+static inline void doWithCTR(pAllocBytes bytes, pAllocBytes master_key) {
     pu8 initial_vec[0x10];
 
     memmove(initial_vec, kCTRInitialVec, sizeof kCTRInitialVec);
