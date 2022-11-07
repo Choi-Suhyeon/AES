@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef unsigned char u8,   * pu8;
 typedef unsigned int  u32,  * pu32;
@@ -24,8 +25,5 @@ void encryptWithCTR(pAllocBytes, pAllocBytes);
 void decryptWithCTR(pAllocBytes, pAllocBytes);
 AllocBytes padding(pAllocBytes);
 AllocBytes unpadding(pAllocBytes);
-
-
-void encryptAES(pu8 inout, pAllocBytes master_key);
 
 #endif

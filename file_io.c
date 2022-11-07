@@ -1,69 +1,79 @@
 #include "file_io.h"
 
-void read_cypher_file(pFile file) {
-    FILE * fp = fopen(file->name, "rb");
+void addEncryptedSuffix(char * dst, char * src) {
+    char * suffix = ".encrypted";
+
+    memmove(dst, src, strlen(src));
+    strncat(dst, suffix, strlen(suffix));
+}
+
+void delEncryptedSuffix(char * dst, char * src) {
+    char * suffix       = ".encrypted";
+    u32    suffix_len   = strlen(suffix),
+        src_len      = strlen(src),
+        pos_replaced = src_len - suffix_len;
+
+    memmove(dst, src, src_len);
+
+    if (!strncmp(dst + pos_replaced, suffix, suffix_len)) {
+        dst[pos_replaced] = '\0';
+    }
+}
+
+bool readCypherFile(pFile file) {
+    FILE * fp;
+    u32    length;
     
-    if (!fp) return;
+    if (!(fp = fopen(file->name, "rb"))) return false;
 
     fseek(fp, 0, SEEK_END);
 
-    u32         length  = ftell(fp);
-    
+    file->content.length = length = ftell(fp);
     file->content.memory = malloc(length);
-    file->content.length = length;
 
     fseek(fp, 0, SEEK_SET);
     fread(file->content.memory, 1, length, fp);
-
     fclose(fp);
+
+    return true;
 }
 
-void read_plain_file(pFile file) {
-    read_cypher_file(file);
+bool readPlainFile(pFile file) {
+    if(!readCypherFile(file)) return false;
     file->content = padding(&file->content);
+
+    return true;
 }
 
-u8 write_cypher_file(pFile file) {
-    char * suffix         = ".encrypted";
-    u32    with_suffix_sz = strlen(file->name) + strlen(suffix) + 1;
-    char * nm_with_suffix = malloc(with_suffix_sz);
+bool writeCypherFile(pFile file) {
+    FILE * fp       = NULL;
+    char * new_name = malloc(strlen(file->name) + 11);
 
-    memmove(nm_with_suffix, file->name, strlen(file->name));
-    strncat(nm_with_suffix, suffix, strlen(suffix));
+    addEncryptedSuffix(new_name, file->name);
 
-    FILE * fp = fopen(nm_with_suffix, "wb");
+    if (!(fp = fopen(new_name, "wb"))) return false;
 
-    if (!fp) return 0;
-
-    fwrite(file->content.memory, sizeof(u8), file->content.length, fp);
+    fwrite(file->content.memory, 1, file->content.length, fp);
     free(file->content.memory);
-    free(nm_with_suffix);
+    free(new_name);
     fclose(fp);
 
-    return 1;
+    return true;
 }
 
-u8 write_plain_file(pFile file) {
-    char *      suffix       = ".encrypted";
-    u32         suffix_len   = strlen(suffix),
-                pos_replaced = strlen(file->name) - suffix_len;
-    char *      new_name     = calloc(strlen(file->name) + 1, 1);
+bool writePlainFile(pFile file) {
+    FILE *      fp           = NULL;
+    char *      new_name     = malloc(strlen(file->name) + 1);
     AllocBytes to_be_written = unpadding(&file->content);
 
-    memmove(new_name, file->name, strlen(file->name));
+    delEncryptedSuffix(new_name, file->name);
 
-    if (!strncmp(new_name + pos_replaced, suffix, suffix_len)) {
-        new_name[pos_replaced] = '\0';
-    }
+    if (!(fp = fopen(new_name, "wb"))) return false;
 
-    FILE * fp = fopen(new_name, "wb");
-
-    if (!fp) return 0;
-
-    fwrite(to_be_written.memory, sizeof(u8), to_be_written.length, fp);
+    fwrite(to_be_written.memory, 1, to_be_written.length, fp);
     free(to_be_written.memory);
     free(new_name);
     fclose(fp);
 
-    return 1;
+    return true;
 }

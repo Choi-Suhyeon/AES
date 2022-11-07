@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 #include "aes_enc_dec.h"
 
 typedef struct {
@@ -10,9 +11,11 @@ typedef struct {
     AllocBytes content;
 } File, * pFile;
 
-void read_cypher_file(pFile);
-void read_plain_file(pFile);
-u8 write_cypher_file(pFile);
-u8 write_plain_file(pFile);
+void addEncryptedSuffix(char *, char *);
+void delEncryptedSuffix(char *, char *);
+bool readCypherFile(pFile);
+bool readPlainFile(pFile);
+bool writeCypherFile(pFile);
+bool writePlainFile(pFile);
 
 #endif
