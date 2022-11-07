@@ -53,6 +53,13 @@ build CMakeFiles/AES.dir/aes_enc_dec.c.o: C_COMPILER__AES_Debug /Users/choisuhye
   OBJECT_DIR = CMakeFiles/AES.dir
   OBJECT_FILE_DIR = CMakeFiles/AES.dir
 
+build CMakeFiles/AES.dir/file_io.c.o: C_COMPILER__AES_Debug /Users/choisuhyeon/CLionProjects/AES/file_io.c || cmake_object_order_depends_target_AES
+  DEP_FILE = CMakeFiles/AES.dir/file_io.c.o.d
+  FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -std=gnu11
+  INCLUDES = -I/Users/choisuhyeon/CLionProjects/AES/.
+  OBJECT_DIR = CMakeFiles/AES.dir
+  OBJECT_FILE_DIR = CMakeFiles/AES.dir
+
 build CMakeFiles/AES.dir/main.c.o: C_COMPILER__AES_Debug /Users/choisuhyeon/CLionProjects/AES/main.c || cmake_object_order_depends_target_AES
   DEP_FILE = CMakeFiles/AES.dir/main.c.o.d
   FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk -std=gnu11
@@ -68,7 +75,7 @@ build CMakeFiles/AES.dir/main.c.o: C_COMPILER__AES_Debug /Users/choisuhyeon/CLio
 #############################################
 # Link the executable AES
 
-build AES: C_EXECUTABLE_LINKER__AES_Debug CMakeFiles/AES.dir/aes_enc_dec.c.o CMakeFiles/AES.dir/main.c.o
+build AES: C_EXECUTABLE_LINKER__AES_Debug CMakeFiles/AES.dir/aes_enc_dec.c.o CMakeFiles/AES.dir/file_io.c.o CMakeFiles/AES.dir/main.c.o
   FLAGS = -g -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX12.3.sdk
   OBJECT_DIR = CMakeFiles/AES.dir
   POST_BUILD = :

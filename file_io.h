@@ -6,12 +6,13 @@
 #include "aes_enc_dec.h"
 
 typedef struct {
-    char *      name;
-    pAllocBytes content;
+    char *     name;
+    AllocBytes content;
 } File, * pFile;
 
-pFile read_file(char *);
-byte write_cypher_file(pFile);
-byte write_plain_file(pFile);
+void read_cypher_file(pFile);
+void read_plain_file(pFile);
+u8 write_cypher_file(pFile);
+u8 write_plain_file(pFile);
 
 #endif

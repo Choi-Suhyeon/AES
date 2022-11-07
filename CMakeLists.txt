@@ -8,7 +8,6 @@ include_directories(.)
 add_executable(AES
         aes_enc_dec.c
         aes_enc_dec.h
+        file_io.c
+        file_io.h
         main.c)
-
-# file_io.c
-# file_io.h

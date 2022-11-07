@@ -41,23 +41,29 @@ __asm__ __volatile__ (         \
 
 #define INC_IV(p)               \
 __asm__ __volatile__ (          \
-    "movq 8(%%rcx), %%rdx \n\t" \
+    "movq (%%rcx), %%rdx  \n\t" \
+    "movq 8(%%rcx), %%rbx \n\t" \
+    "bswapq %%rdx         \n\t" \
+    "bswapq %%rbx         \n\t" \
     "movq %%rdx, %%rax    \n\t" \
     "incq %%rdx           \n\t" \
-    "addq $1, (%%rcx)     \n\t" \
+    "addq $1, %%rbx       \n\t" \
     "cmovnae %%rdx, %%rax \n\t" \
-    "movq %%rax, 8(%%rcx) \n\t" \
+    "bswapq %%rax         \n\t" \
+    "bswapq %%rbx         \n\t" \
+    "movq %%rax, (%%rcx)  \n\t" \
+    "movq %%rbx, 8(%%rcx) \n\t" \
     :: "c"((p))                 \
-    :  "rdx", "rax"             \
+    :  "rdx", "rax", "rbx"      \
 )
 
 #define APPLY_ENC_TBL(i, j, k, l) (kEncTbl0[(i)] ^ kEncTbl1[(j)] ^ kEncTbl2[(k)] ^ kEncTbl3[(l)])
 
 #define APPLY_WITHOUT_MIX(dst, i, j, k, l) \
-(dst)[0] = ((pbyte)(kEncTbl2 + i))[0];     \
-(dst)[1] = ((pbyte)(kEncTbl3 + j))[1];     \
-(dst)[2] = ((pbyte)(kEncTbl0 + k))[2];     \
-(dst)[3] = ((pbyte)(kEncTbl1 + l))[3]
+(dst)[0] = ((pu8)(kEncTbl2 + i))[0];     \
+(dst)[1] = ((pu8)(kEncTbl3 + j))[1];     \
+(dst)[2] = ((pu8)(kEncTbl0 + k))[2];     \
+(dst)[3] = ((pu8)(kEncTbl1 + l))[3]
 
 #define DO_A_ROUND(dst, src, key)                                                     \
 *(pu32)((dst) + 0x0) = APPLY_ENC_TBL((src)[0x0], (src)[0x5], (src)[0xA], (src)[0xF]); \
@@ -74,13 +80,20 @@ APPLY_WITHOUT_MIX((dst) + 0xC, (src)[0xC], (src)[0x1], (src)[0x6], (src)[0xB]); 
 XOR_16BYTES((dst), (key))
 
 typedef struct {
-    pbyte keys;
+    pu8 keys;
     u32   count;
 } Round, * pRound;
 
-const byte kRCon[0xA] = { 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36 };
+const u8 kCTRInitialVec[16] = { 0 };
 
-const byte kSBox[0x100] = {
+const u8 kRawMasterKey[16]  = {
+    0x2b, 0x7e, 0x15, 0x16, 0x28, 0xae, 0xd2, 0xa6,
+    0xab, 0xf7, 0x15, 0x88, 0x09, 0xcf, 0x4f, 0x3c
+};
+
+const u8 kRCon[0xA] = {0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1B, 0x36 };
+
+const u8 kSBox[0x100] = {
     0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
     0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
     0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -99,7 +112,7 @@ const byte kSBox[0x100] = {
     0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16
 };
 
-const byte kInvSBox[0x100] = {
+const u8 kInvSBox[0x100] = {
     0x52, 0x09, 0x6a, 0xd5, 0x30, 0x36, 0xa5, 0x38, 0xbf, 0x40, 0xa3, 0x9e, 0x81, 0xf3, 0xd7, 0xfb,
     0x7c, 0xe3, 0x39, 0x82, 0x9b, 0x2f, 0xff, 0x87, 0x34, 0x8e, 0x43, 0x44, 0xc4, 0xde, 0xe9, 0xcb,
     0x54, 0x7b, 0x94, 0x32, 0xa6, 0xc2, 0x23, 0x3d, 0xee, 0x4c, 0x95, 0x0b, 0x42, 0xfa, 0xc3, 0x4e,
@@ -255,7 +268,7 @@ const u32 kEncTbl3[0x100] = {
     0x82C34141, 0x29B09999, 0x5A772D2D, 0x1E110F0F, 0x7BCBB0B0, 0xA8FC5454, 0x6DD6BBBB, 0x2C3A1616,
 };
 
-void printInterim(pbyte bytes, char * title) {
+void printInterim(pu8 bytes, char * title) {
     printf("------ %s ------\n", title);
     for (unsigned i = 0; i < 16; i++) {
         printf("0x%02X ", bytes[i]);
@@ -263,14 +276,13 @@ void printInterim(pbyte bytes, char * title) {
     }
 }
 
-pbyte expandKey128(pbyte master_key, u32 rnd_num) {
-    pbyte round_keys   = malloc((rnd_num + 1) * 0x10),
-          pre_each_rnd = malloc(4);
+void expandKey128(pu8 master_key, pRound out) {
+    u8 pre_each_rnd[4] = { 0 };
 
-    memmove(round_keys, master_key, 0x10);
+    memmove(out->keys, master_key, 0x10);
 
-    for (u32 i = 0x10; i <= rnd_num * 0x10; i += 0x10) {
-        memmove(pre_each_rnd, round_keys + i - 0x4, 4);
+    for (u32 i = 0x10; i <= out->count * 0x10; i += 0x10) {
+        memmove(pre_each_rnd, out->keys + i - 0x4, 4);
         ROT_WORD(pre_each_rnd, 8);
 
         pre_each_rnd[0] = kSBox[pre_each_rnd[0]] ^ kRCon[(i >> 4) - 1];
@@ -278,64 +290,66 @@ pbyte expandKey128(pbyte master_key, u32 rnd_num) {
         pre_each_rnd[2] = kSBox[pre_each_rnd[2]];
         pre_each_rnd[3] = kSBox[pre_each_rnd[3]];
 
-        *(pu32)(round_keys + i + 0x0) = *(pu32)pre_each_rnd           ^ *(pu32)(round_keys + i - 0x10);
-        *(pu32)(round_keys + i + 0x4) = *(pu32)(round_keys + i + 0x0) ^ *(pu32)(round_keys + i - 0x0C);
-        *(pu32)(round_keys + i + 0x8) = *(pu32)(round_keys + i + 0x4) ^ *(pu32)(round_keys + i - 0x08);
-        *(pu32)(round_keys + i + 0xC) = *(pu32)(round_keys + i + 0x8) ^ *(pu32)(round_keys + i - 0x04);
+        *(pu32)(out->keys + i + 0x0) = *(pu32)pre_each_rnd          ^ *(pu32)(out->keys + i - 0x10);
+        *(pu32)(out->keys + i + 0x4) = *(pu32)(out->keys + i + 0x0) ^ *(pu32)(out->keys + i - 0x0C);
+        *(pu32)(out->keys + i + 0x8) = *(pu32)(out->keys + i + 0x4) ^ *(pu32)(out->keys + i - 0x08);
+        *(pu32)(out->keys + i + 0xC) = *(pu32)(out->keys + i + 0x8) ^ *(pu32)(out->keys + i - 0x04);
     }
-
-    free(pre_each_rnd);
-    return round_keys;
 }
 
-pbyte expandKey192(pbyte master_key, u32 rnd_num) {}
+void expandKey192(pu8 master_key, pRound out) {}
 
-pbyte expandKey256(pbyte master_key, u32 rnd_num) {}
+void expandKey256(pu8 master_key, pRound out) {}
 
-pRound keySchedule(pAllocBytes master_key) {
-    pRound result = malloc(sizeof(Round));
+void keySchedule(pAllocBytes master_key, pRound out) {
+    void (* expand_keys[3]) (pu8, pRound) = {
+        expandKey128, expandKey192, expandKey256
+    };
 
-    switch(master_key->length) {
-        case 16: *result = (Round) { expandKey128(master_key->memory, 10), 10 }; break;
-        case 24: *result = (Round) { expandKey192(master_key->memory, 12), 12 }; break;
-        case 32: *result = (Round) { expandKey256(master_key->memory, 14), 14 }; break;
+    switch (master_key->length) {
+        case 16: out->count = 10; break;
+        case 24: out->count = 12; break;
+        case 32: out->count = 14; break;
     }
 
-    return result;
+    expand_keys[(out->count >> 1) - 5](master_key->memory, out);
 }
 
-void encryptAES(pbyte inout, pAllocBytes master_key) {
-    pRound round         = keySchedule(master_key);
-    byte   tmp_tbl[0x10] = { 0 };
+void encryptAES(pu8 inout, pAllocBytes master_key) {
+    printInterim(inout, "INOUT");
 
-    XOR_16BYTES(inout, round->keys);
+    printInterim(master_key->memory, "MASTER KEY");
 
-    DO_A_ROUND(tmp_tbl, inout,   round->keys + 0x10);
-    DO_A_ROUND(inout,   tmp_tbl, round->keys + 0x20);
-    DO_A_ROUND(tmp_tbl, inout,   round->keys + 0x30);
-    DO_A_ROUND(inout,   tmp_tbl, round->keys + 0x40);
-    DO_A_ROUND(tmp_tbl, inout,   round->keys + 0x50);
-    DO_A_ROUND(inout,   tmp_tbl, round->keys + 0x60);
-    DO_A_ROUND(tmp_tbl, inout,   round->keys + 0x70);
-    DO_A_ROUND(inout,   tmp_tbl, round->keys + 0x80);
-    DO_A_ROUND(tmp_tbl, inout,   round->keys + 0x90);
-    if (round->count == 10) goto LAST_ROUND;
+    Round round         = { (u8[0xE0]) { 0 }, 0 };
+    u8    tmp_stt[0x10] = { 0 };
 
-    DO_A_ROUND(inout,   tmp_tbl, round->keys + 0xA0);
-    DO_A_ROUND(tmp_tbl, inout,   round->keys + 0xB0);
-    if (round->count == 12) goto LAST_ROUND;
+    keySchedule(master_key, &round);
+    XOR_16BYTES(inout, round.keys);
 
-    DO_A_ROUND(inout,   tmp_tbl, round->keys + 0xC0);
-    DO_A_ROUND(tmp_tbl, inout,   round->keys + 0xD0);
+    DO_A_ROUND(tmp_stt, inout, round.keys + 0x10);
+    DO_A_ROUND(inout, tmp_stt, round.keys + 0x20);
+    DO_A_ROUND(tmp_stt, inout, round.keys + 0x30);
+    DO_A_ROUND(inout, tmp_stt, round.keys + 0x40);
+    DO_A_ROUND(tmp_stt, inout, round.keys + 0x50);
+    DO_A_ROUND(inout, tmp_stt, round.keys + 0x60);
+    DO_A_ROUND(tmp_stt, inout, round.keys + 0x70);
+    DO_A_ROUND(inout, tmp_stt, round.keys + 0x80);
+    DO_A_ROUND(tmp_stt, inout, round.keys + 0x90);
+    if (round.count == 10) goto LAST_ROUND;
+
+    DO_A_ROUND(inout, tmp_stt, round.keys + 0xA0);
+    DO_A_ROUND(tmp_stt, inout, round.keys + 0xB0);
+    if (round.count == 12) goto LAST_ROUND;
+
+    DO_A_ROUND(inout, tmp_stt, round.keys + 0xC0);
+    DO_A_ROUND(tmp_stt, inout, round.keys + 0xD0);
 
     LAST_ROUND:
-    DO_LAST_ROUND(inout, tmp_tbl, round->keys + round->count * 0x10);
-
-    free(round->keys);
-    free(round);
+    DO_LAST_ROUND(inout, tmp_stt, round.keys + round.count * 0x10);
 }
-/*
-void decryptAES(pbyte inout, pAllocBytes master_key) {
+
+void decryptAES(pu8 inout, pAllocBytes master_key) {
+    /*
     pRound round = keySchedule(master_key);
     u32    idx   = (round->rnd_num - 1) * 0x10;
 
@@ -354,55 +368,45 @@ void decryptAES(pbyte inout, pAllocBytes master_key) {
 
     free(round->keys);
     free(round);
+     */
 }
-*/
-pAllocBytes padding(pAllocBytes plain) {
-    u32         padding_len = 0x10 - plain->length % 0x10,
-                result_len  = plain->length + padding_len;
-    pAllocBytes result      = malloc(sizeof(pAllocBytes));
 
-    *result = (AllocBytes) { malloc(result_len), result_len };
+AllocBytes padding(pAllocBytes plain) {
+    u32         padding_sz = 0x10 - plain->length % 0x10,
+                result_sz  = plain->length + padding_sz;
+    AllocBytes result      = {malloc(result_sz), result_sz };
 
-    memset(result->memory + plain->length, padding_len, padding_len);
-    memmove(result->memory, plain->memory, plain->length);
-
+    memset(result.memory + plain->length, padding_sz, padding_sz);
+    memmove(result.memory, plain->memory, plain->length);
     free(plain->memory);
-    free(plain);
     
     return result;
 }
 
-pAllocBytes unpadding(pAllocBytes plain) {
-    u32  content_sz         = plain->length,
-         padding_sz         = plain->memory[content_sz - 1],
-         without_padding_sz = content_sz - padding_sz;
-    pAllocBytes result = malloc(sizeof(pAllocBytes));
+AllocBytes unpadding(pAllocBytes plain) {
+    u32        content_sz = plain->length,
+               padding_sz = plain->memory[content_sz - 1],
+               result_sz  = content_sz - padding_sz;
+    AllocBytes result     = { malloc(result_sz), result_sz };
 
-    *result = (AllocBytes) { malloc(without_padding_sz), without_padding_sz };
-
-    memmove(result->memory, plain, without_padding_sz);
-
+    memmove(result.memory, plain->memory, result_sz);
     free(plain->memory);
-    free(plain);
 
     return result;
 }
 
 void encryptWithECB(pAllocBytes plain, pAllocBytes master_key) {
-    printf("%lu\n", plain->length);
     for (u32 i = 0; i < plain->length; i += 0x10) {
-        puts("DEBUG0");
         encryptAES(plain->memory + i, master_key);
-        puts("DEBUG2");
     }
 }
-/*
+
 void decryptWithECB(pAllocBytes cypher, pAllocBytes master_key) {
     for (u32 i = 0; i < cypher->length; i += 0x10) {
         decryptAES(cypher->memory + i, master_key);
     }
 }
-*/
+
 void encryptWithCBC(pAllocBytes plain, pAllocBytes master_key) {
 
 }
@@ -412,23 +416,18 @@ void decryptWithCBC(pAllocBytes cypher, pAllocBytes master_key) {
 }
 
 void doWithCTR(pAllocBytes bytes, pAllocBytes master_key) {
-    // pbyte initial_vec = malloc(sizeof kCTRInitialVec);
+    pu8 initial_vec[0x10];
 
-    pbyte initial_vec = malloc(16);
-    memset(initial_vec, 0, 16);
-
-    // memmove(initial_vec, kCTRInitialVec, sizeof kCTRInitialVec);
+    memmove(initial_vec, kCTRInitialVec, sizeof kCTRInitialVec);
 
     for (u32 i = 0; i < bytes->length; i += 0x10) {
-        byte temp_vec[16];
+        u8 temp_vec[0x10];
 
         memmove(temp_vec, initial_vec, sizeof temp_vec);
         encryptAES(temp_vec, master_key);
         XOR_16BYTES(bytes->memory + i, temp_vec);
         INC_IV(initial_vec);
     }
-
-    free(initial_vec);
 }
 
 void encryptWithCTR(pAllocBytes plain, pAllocBytes master_key) {
