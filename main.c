@@ -1,7 +1,18 @@
+#include <time.h>
 #include <stdio.h>
 #include <unistd.h>
 #include "file_io.h"
 #include "aes_enc_dec.h"
+
+typedef void (* tyEncFn) (pAllocBytes, pAllocBytes);
+
+double measureTime(tyEncFn func, pAllocBytes fst, pAllocBytes snd) {
+    clock_t start = clock();
+
+    func(fst, snd);
+
+    return (double)(clock() - start) / CLOCKS_PER_SEC;
+}
 
 int main(int argc, char ** argv) {
     const char * const kEnc = "enc";
@@ -43,17 +54,19 @@ int main(int argc, char ** argv) {
 
     if (!read_file(&file)) goto FAILURE;
 
-    printf("[note]   : %s in progress.\n", ending_title);
+    printf("[note]    : %s in progress.\n", ending_title);
     memmove(master_key.memory, kRawMasterKey, master_key.length);
-    procedure(&file.content, &master_key);
+
+    double time = measureTime(procedure, &file.content, &master_key);
 
     if (!write_file(&file)) goto FAILURE;
 
     char * new_name = malloc(strlen(argv[2]) + 11);
 
     deco_name(new_name, argv[2]);
-    printf("[status] : %s -> %s\n", argv[2], new_name);
-    printf("[result] : %s was successful.\n", ending_title);
+    printf("[elapsed] : %lfs\n", time);
+    printf("[status]  : %s -> %s\n", argv[2], new_name);
+    printf("[result]  : %s was successful.\n", ending_title);
     free(new_name);
 
     return 0;

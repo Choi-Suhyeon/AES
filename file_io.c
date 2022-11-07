@@ -45,35 +45,32 @@ bool readPlainFile(pFile file) {
     return true;
 }
 
-bool writeCypherFile(pFile file) {
-    FILE * fp       = NULL;
-    char * new_name = malloc(strlen(file->name) + 11);
+bool pureWriteFile(pAllocBytes file_bytes, char * file_name) {
+    FILE * fp = NULL;
 
-    addEncryptedSuffix(new_name, file->name);
+    if (!(fp = fopen(file_name, "wb"))) return false;
 
-    if (!(fp = fopen(new_name, "wb"))) return false;
-
-    fwrite(file->content.memory, 1, file->content.length, fp);
-    free(file->content.memory);
-    free(new_name);
+    fwrite(file_bytes->memory, 1, file_bytes->length, fp);
+    free(file_bytes->memory);
+    free(file_name);
     fclose(fp);
 
     return true;
 }
 
+bool writeCypherFile(pFile file) {
+    char * new_name = malloc(strlen(file->name) + 11);
+
+    addEncryptedSuffix(new_name, file->name);
+
+    return pureWriteFile(&file->content, new_name);
+}
+
 bool writePlainFile(pFile file) {
-    FILE *      fp           = NULL;
     char *      new_name     = malloc(strlen(file->name) + 1);
     AllocBytes to_be_written = unpadding(&file->content);
 
     delEncryptedSuffix(new_name, file->name);
 
-    if (!(fp = fopen(new_name, "wb"))) return false;
-
-    fwrite(to_be_written.memory, 1, to_be_written.length, fp);
-    free(to_be_written.memory);
-    free(new_name);
-    fclose(fp);
-
-    return true;
+    return pureWriteFile(&to_be_written, new_name);
 }

@@ -5,8 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef unsigned char u8,   * pu8;
-typedef unsigned int  u32,  * pu32;
+typedef unsigned char u8,  * pu8;
+typedef unsigned int  u32, * pu32;
 
 typedef struct {
     pu8 memory;
